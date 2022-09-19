@@ -203,3 +203,29 @@ export interface PZInfo {
     data: PZServerData;
     lastUpdated: Date;
 };
+
+export interface SlapPayload {
+    username?: string;
+};
+
+export interface ComeGetSomePayload {
+    username?: string;
+};
+
+export interface HordePayload {
+    username?: string;
+};
+
+export interface MessagePayload {
+    to?: string;
+    text: string;
+};
+
+export interface GiftPayload {
+    username?: string;
+    items: Array<string>;
+};
+
+export interface ZombieJumpScarePayload {
+    username?: string;
+};
