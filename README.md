@@ -1,5 +1,7 @@
 # BrainSlug Command and Control Server
 
+NodeJS server application for sending commands to and receiving infos from the PZ BrainSlug mod. Find it [here](https://github.com/r0oto0r/brainslug-mod).
+
 ## CONFIG
 
 ### Env Variabls
