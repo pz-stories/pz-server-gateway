@@ -35,18 +35,18 @@ npm run exec
 
 | Type        | Endpoint    | Request     | Returns     |
 | ----------- | ----------- | ----------- | ----------- |
-| GET         | /info       | -           | PZInfo      |
-| POST        | /command    | Command     | -           |
-| POST        | /rcon       | RCONCommand | RCONResponse|
+| GET         | /info       | -           | [PZInfo](https://github.com/r0oto0r/brainslug-server/blob/main/src/Interfaces.ts#L202)      |
+| POST        | /command    | [Command](https://github.com/r0oto0r/brainslug-server/blob/main/src/Interfaces.ts#L1)     | -           |
+| POST        | /rcon       | [RCONCommand](https://github.com/r0oto0r/brainslug-server/blob/main/src/Interfaces.ts#L6) | [RCONResponse](https://github.com/r0oto0r/brainslug-server/blob/main/src/Interfaces.ts#L11) |
 
 ## WEBSOCKET MESSAGES
 ### Recieve
 | Type        | Payload     |
 | ----------- | ----------- |
-| info        | /PZInfo     |
-
+| info        | [PZInfo](https://github.com/r0oto0r/brainslug-server/blob/main/src/Interfaces.ts#L202)      |
+| rcon-response | [RCONResponse](https://github.com/r0oto0r/brainslug-server/blob/main/src/Interfaces.ts#L11) |
 ### Send
 | Type        | Payload     |
 | ----------- | ----------- |
-| command     | Command     |
-| rcon        | RCONCommand |
+| command     | [Command](https://github.com/r0oto0r/brainslug-server/blob/main/src/Interfaces.ts#L1)     |
+| rcon        | [RCONCommand](https://github.com/r0oto0r/brainslug-server/blob/main/src/Interfaces.ts#L6) |
