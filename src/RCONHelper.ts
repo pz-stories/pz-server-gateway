@@ -1,0 +1,66 @@
+import { Rcon } from "rcon-client"
+
+export class RCONHelper {
+    private static rcon = new Rcon({
+        host: process.env.RCON_HOST ? process.env.RCON_HOST : "localhost",
+        port: process.env.RCON_PORT ? parseInt(process.env.RCON_PORT) : 27015,
+        password: process.env.RCON_PW ? process.env.RCON_PW : "PZ_RULES"
+    });
+    private static isShuttingDown: boolean = false;
+
+    private static reconnectInterval: NodeJS.Timeout;
+
+    public static get shutdown(): boolean {
+        return RCONHelper.isShuttingDown;
+    }
+
+    public static set shutdown(shutdown: boolean) {
+        RCONHelper.isShuttingDown = shutdown;
+    }
+
+    public static tryToConnectToRcon = async () => {
+        try {
+            await RCONHelper.rcon.connect();
+        } catch (error: any) {
+            if(error.code !== 'ECONNREFUSED') {
+                console.log(`RCON Client connection error: ${error}`);
+            }
+            clearTimeout(RCONHelper.reconnectInterval);
+            RCONHelper.reconnectInterval = setTimeout(RCONHelper.tryToConnectToRcon, 1000);
+        }
+    }
+
+    public static startRCONClient = async () => {
+        RCONHelper.rcon.on("connect", () => {
+            console.log('RCON Client connected');
+        });
+    
+        RCONHelper.rcon.on("error", (error) => {
+            console.log(`RCON Client error: ${error}`);
+            if(RCONHelper.isShuttingDown) return;
+            clearTimeout(RCONHelper.reconnectInterval);
+            RCONHelper.reconnectInterval = setTimeout(RCONHelper.tryToConnectToRcon, 1000);
+        });
+
+        RCONHelper.rcon.on('end', () => {
+            console.log('RCON Client ended');
+            if(RCONHelper.isShuttingDown) return;
+            clearTimeout(RCONHelper.reconnectInterval);
+            RCONHelper.reconnectInterval = setTimeout(RCONHelper.tryToConnectToRcon, 1000);
+        });
+    
+        return RCONHelper.tryToConnectToRcon();
+    }
+
+    public static stopRCONClient = async () => {
+        return RCONHelper.rcon.end();
+    }
+
+    public static send = async (command: string, args: Array<string>) => {
+        let commandString = command;
+        if(args.length > 0) {
+            commandString += ' ' + args.join(' ');
+        }
+        return RCONHelper.rcon.send(commandString);
+    }
+}
