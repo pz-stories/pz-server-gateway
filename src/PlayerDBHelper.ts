@@ -1,5 +1,6 @@
 import knex, { Knex } from 'knex';
 import { PZDBPlayer, PZPlayer } from './Interfaces';
+import { Log } from './Log';
 
 export const PLAYERS_DB = 'player';
 export const PZ_PLAYERS_DB = 'networkPlayers';
@@ -31,7 +32,7 @@ export class PlayerDBHelper {
 
         await PlayerDBHelper.createTables();
 
-        console.log('Database connection established');
+        Log.info('Database connection established');
     }
 
     public static async createTables() {

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 
 if(!process.env.API_KEY && !process.env.DEBUG) {
- 	throw 'MISSING API KEY ENV VARIABLE';
+	throw 'MISSING API KEY ENV VARIABLE';
 }
 
 const checkAPIKey = (apiKey: string | undefined) => {

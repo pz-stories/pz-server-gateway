@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { IPCMessage } from "./Interfaces";
 import os from 'os';
+import { Log } from "./Log";
 
 if(!process.env.OUTPIPE_FILE_NAME && !process.env.DEBUG) {
     throw 'MISSING OUTPIPE_FILE_NAME ENV VAR';
@@ -20,7 +21,7 @@ const readLine = () => {
             (process as any).send({ type: 'data', payload: data } as IPCMessage);
         }
     } catch (error) {
-        console.log(error);
+        Log.error(error);
         delay(1000);
         (process as any).send('Reopening outpipe');
     }

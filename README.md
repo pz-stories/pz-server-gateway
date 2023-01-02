@@ -22,7 +22,7 @@ NodeJS server application for sending commands to and receiving infos from the P
 
 ## BUILD & RUN
 * Requires nodejs >= 16
-  
+
 ### Build
 ```bash
 npm run install

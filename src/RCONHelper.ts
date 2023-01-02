@@ -1,4 +1,5 @@
 import { Rcon } from "rcon-client"
+import { Log } from "./Log"
 
 export class RCONHelper {
     private static rcon = new Rcon({
@@ -23,7 +24,7 @@ export class RCONHelper {
             await RCONHelper.rcon.connect();
         } catch (error: any) {
             if(error.code !== 'ECONNREFUSED') {
-                console.log(`RCON Client connection error: ${error}`);
+                Log.error(`RCON Client connection error: ${error}`);
             }
             clearTimeout(RCONHelper.reconnectInterval);
             RCONHelper.reconnectInterval = setTimeout(RCONHelper.tryToConnectToRcon, 1000);
@@ -32,18 +33,18 @@ export class RCONHelper {
 
     public static startRCONClient = async () => {
         RCONHelper.rcon.on("connect", () => {
-            console.log('RCON Client connected');
+            Log.info('RCON Client connected');
         });
     
         RCONHelper.rcon.on("error", (error) => {
-            console.log(`RCON Client error: ${error}`);
+            Log.error(`RCON Client error: ${error}`);
             if(RCONHelper.isShuttingDown) return;
             clearTimeout(RCONHelper.reconnectInterval);
             RCONHelper.reconnectInterval = setTimeout(RCONHelper.tryToConnectToRcon, 1000);
         });
 
         RCONHelper.rcon.on('end', () => {
-            console.log('RCON Client ended');
+            Log.warn('RCON Client ended');
             if(RCONHelper.isShuttingDown) return;
             clearTimeout(RCONHelper.reconnectInterval);
             RCONHelper.reconnectInterval = setTimeout(RCONHelper.tryToConnectToRcon, 1000);

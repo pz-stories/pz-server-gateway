@@ -8,6 +8,7 @@ import { PlayerDBHelper } from "./PlayerDBHelper";
 import { Command, IPCMessage, PZInfo, PZPlayer, PZServerData, RCONCommand, RCONResponse } from "./Interfaces";
 import { handleAuth } from "./Auth";
 import { RCONHelper } from "./RCONHelper";
+import { Log } from "./Log";
 
 let inpipeThread: ChildProcess | undefined;
 let outpipeThread: ChildProcess | undefined;
@@ -32,7 +33,7 @@ const killInpipeThread = () => {
             process.kill(inppipeThreadPID, 'SIGHUP');
         } catch (error: any) {
             if(error.code !== 'ESRCH') {
-                console.log(error);
+                Log.error(error);
             }
         }
     }
@@ -48,7 +49,7 @@ const killOutpipeThread = () => {
             process.kill(outpipeThreadPID, 'SIGHUP');
         } catch (error: any) {
             if(error.code !== 'ESRCH') {
-                console.log(error);
+                Log.error(error);
             }
         }
     }
@@ -61,7 +62,7 @@ const startInpipeHandler = () => {
         switch(message.type) {
             case 'pipeError':
                 clearTimeout(refreshInfoTimeOut);
-                console.log('Reopening inpipe');
+                Log.warn('Reopening inpipe');
                 break;
             default:
                 break;
@@ -70,19 +71,19 @@ const startInpipeHandler = () => {
 
     inpipeThread.on('exit', () => {
         if(shutdown) return;
-        console.log('Restarting InpipeHandler');
+        Log.warn('Restarting InpipeHandler');
         setTimeout(() => {
             startInpipeHandler();
         }, 2500)
     });
 
     inpipeThread.on('error', (error) => {
-        console.log(`InpipeHandler error: ${error}`);
+        Log.error(`InpipeHandler error: ${error}`);
     });
     
     inpipeThread.on('spawn', () => {
         sendMessage({ type: 'START' });
-        console.log('Pinging PZ Server');
+        Log.info('Pinging PZ Server');
         sendMessage({ type: 'COMMAND', payload: { command: 'ping' } });
     });
 };
@@ -103,7 +104,7 @@ const startOutpipeHandler = () => {
                 try {
                     payload = JSON.parse(message.payload);
                 } catch (error) {
-                    console.log(error);
+                    Log.error(error);
                     return;
                 }
                 const newServerData = payload.data as PZServerData;
@@ -138,40 +139,40 @@ const startOutpipeHandler = () => {
                                 ...newServerData.game
                             };
                         }
-                        console.log('PZ Server connected');
+                        Log.info('PZ Server connected');
                         refreshInfo();                    
                         break;
                     case 'zombieDied':
-                        console.log('Zombie died');
+                        Log.info('Zombie died');
                         break;
                     case 'playerDied':
-                        console.log(`Player ${payload.data.username} died`);
+                        Log.info(`Player ${payload.data.username} died`);
                         break;
                     case 'playerConnected':
-                        console.log(`Player ${payload.data.username} connected`);
+                        Log.info(`Player ${payload.data.username} connected`);
                         break;
                     case 'playerDisconnected':
-                        console.log(`Player ${payload.data.username} disconnected`);
+                        Log.info(`Player ${payload.data.username} disconnected`);
                         break;
                     case 'log':
-                        console.log(payload.data);
+                        Log.info(payload.data);
                         break;
                 }
                 break;
             default:
             case 'log':
-                console.log(message.payload);
+                Log.info(message.payload);
                 break;
         }
     });
 
     outpipeThread.on('error', (error) => {
-        console.log(`OutpipeHandler error: ${error}`);
+        Log.error(`OutpipeHandler error: ${error}`);
     });
 
     outpipeThread.on('exit', () => {
         if(shutdown) return;
-        console.log('Restarting OutpipeHandler');
+        Log.warn('Restarting OutpipeHandler');
         setTimeout(() => {
             startOutpipeHandler();
         }, 2500)
@@ -247,7 +248,7 @@ const startExpress = () => {
             const info = await makeInfo();
             return res.status(200).send(info);
         } catch (error) {
-            console.log(error)
+            Log.error(error)
             return res.status(500).send(error);
         }
     });
@@ -255,7 +256,7 @@ const startExpress = () => {
     app.post("/command", async (req: Request, res: Response): Promise<Response> => {
         const { command, payload } = req.body  as Command;
         try {
-            process.env.DEBUG && console.log(`executing command ${command} params:\n${JSON.stringify(payload, null, 2)}`);
+            Log.debug(`executing command ${command} params:\n${JSON.stringify(payload, null, 2)}`);
             sendMessage({ type: 'COMMAND', payload: { command, payload } });
             // Just post back command for verification
             return res.status(200).send({ type: 'COMMAND', payload: { command, payload } as Command });
@@ -267,7 +268,7 @@ const startExpress = () => {
     app.post("/rcon", async (req: Request, res: Response): Promise<Response> => {
         const { command, args } = req.body as RCONCommand;
         try {
-            process.env.DEBUG && console.log(`executing rcon command ${command} params:\n${JSON.stringify(args, null, 2)}`);
+            Log.debug(`executing rcon command ${command} params:\n${JSON.stringify(args, null, 2)}`);
             const response = await RCONHelper.send(command, args);
             return res.status(200).send({ response } as RCONResponse);
         } catch (error) {
@@ -276,21 +277,21 @@ const startExpress = () => {
     });
 
     app.listen(expressPort, () => {
-        console.log(`Express accepting connections on port ${expressPort}`);
+        Log.info(`Express accepting connections on port ${expressPort}`);
     });
 };
 
 const startWebsocketServer = () => {
     const server = http.createServer(app);
     const io = new Server(server);
-    
+
     io.on("connection", (socket: Socket) => { 
-        console.log(`New websocket connection: ${socket?.handshake?.address}`);
-    
+        Log.info(`New websocket connection: ${socket?.handshake?.address}`);
+
         socket.on("command", (data) => {
             const { command, payload } = data;
             try {
-                process.env.DEBUG && console.log(`executing websocket command ${command} params:\n${JSON.stringify(payload, null, 2)}`);
+                Log.debug(`executing websocket command ${command} params:\n${JSON.stringify(payload, null, 2)}`);
                 sendMessage({ type: 'COMMAND', payload: { command, payload } });
             } catch (error) {
                 socket.send('command-error', error);
@@ -300,7 +301,7 @@ const startWebsocketServer = () => {
         socket.on("rcon", async (data) => {
             const { command, args } = data;
             try {
-                process.env.DEBUG && console.log(`executing websocket rcon command ${command} params:\n${JSON.stringify(args, null, 2)}`);
+                Log.debug(`executing websocket rcon command ${command} params:\n${JSON.stringify(args, null, 2)}`);
                 const response = await RCONHelper.send(command, args);
                 socket.send('rcon-response', { response } as RCONResponse);
             } catch (error) {
@@ -314,17 +315,17 @@ const startWebsocketServer = () => {
         }, 1000);
 
         socket.on("disconnect", () => {
-            console.log(`websocket connection lost: ${socket?.handshake?.address}`);
+            Log.warn(`websocket connection lost: ${socket?.handshake?.address}`);
             clearInterval(timer);
         })
     });
-    
+
     io.listen(websocketPort);
-    console.log(`Socket server started. Listing on port ${websocketPort}`);
+    Log.info(`Socket server started. Listing on port ${websocketPort}`);
 };
 
 const exitHandler = async () => {
-    console.log('\nSchutting down BrainSlug Server');
+    Log.info('\nSchutting down BrainSlug Server');
     shutdown = true;
     RCONHelper.shutdown = true;
     await RCONHelper.stopRCONClient();
@@ -339,30 +340,30 @@ process.on('SIGUSR2', exitHandler);
 
 (async () => {
     try {
-        console.log('Booting BrainSlug Command and Control Server');
+        Log.info('Booting BrainSlug Command and Control Server');
 
         if(process.env.DEBUG) {
-            console.log('Debug mode active');
+            Log.debug('Debug mode active');
         }
 
-        console.log('Initiating SQLite3 Database');
+        Log.info('Initiating SQLite3 Database');
         await PlayerDBHelper.init();
 
-        console.log('Starting OutpipeHandler'); // messages comming out of PZ server
+        Log.info('Starting OutpipeHandler'); // messages comming out of PZ server
         startOutpipeHandler();
 
-        console.log('Starting InpipeHandler'); // messages going into PZ server
+        Log.info('Starting InpipeHandler'); // messages going into PZ server
         startInpipeHandler();
 
-        console.log('Starting express server');
+        Log.info('Starting express server');
         startExpress();
 
-        console.log('Starting websocket server');
+        Log.info('Starting websocket server');
         startWebsocketServer();
 
-        console.log('Starting RCON Client');
+        Log.info('Starting RCON Client');
         await RCONHelper.startRCONClient();
     } catch (error: any) {
-        console.error(`Error occured: ${error}`);
+        Log.error(`Error occured: ${error}`);
     }
 })();
