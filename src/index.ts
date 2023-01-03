@@ -19,7 +19,7 @@ let shutdown = false;
 
 const app: Application = express();
 const expressPort = process.env.EXPRESS_PORT ? process.env.EXPRESS_PORT : 8080;
-const websocketPort = process.env.WEBSOCKET_PORT ? process.env.WEBSOCKET_PORT as any : 80;
+const websocketPort = process.env.WEBSOCKET_PORT ? process.env.WEBSOCKET_PORT as any : 8088;
 
 const sendMessage = (message: IPCMessage) => {
     inpipeThread?.send(message);
