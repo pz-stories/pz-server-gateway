@@ -1,19 +1,20 @@
-import express, { Application, Request, Response } from "express";
+import express, {Application, Request, Response} from "express";
 import cors from 'cors';
 import compression from "compression";
-import { Server, Socket } from "socket.io";
-import { ChildProcess, fork } from 'child_process';
+import {Server, Socket} from "socket.io";
+import {ChildProcess, fork} from 'child_process';
 import http from 'http';
-import { PlayerDBHelper } from "./PlayerDBHelper";
-import { Command, IPCMessage, PZInfo, PZPlayer, PZServerData, RCONCommand, RCONResponse } from "./Interfaces";
-import { handleAuth } from "./Auth";
-import { RCONHelper } from "./RCONHelper";
-import { Log } from "./Log";
+import {PlayerDBHelper} from "./PlayerDBHelper";
+import {IPCMessage, PZInfo, PZServerData, RCONCommand, RCONResponse, ServerStatus} from "./Interfaces";
+import {handleAuth} from "./Auth";
+import {RCONHelper} from "./RCONHelper";
+import {Log} from "./Log";
 
 let inpipeThread: ChildProcess | undefined;
 let outpipeThread: ChildProcess | undefined;
 let serverData: PZServerData;
 let lastUpdated: Date;
+let serverIsUp = false;
 let refreshInfoTimeOut: NodeJS.Timeout;
 let shutdown = false;
 
@@ -28,28 +29,28 @@ const sendMessage = (message: IPCMessage) => {
 const killInpipeThread = () => {
     inpipeThread?.kill('SIGINT');
     const inppipeThreadPID = inpipeThread?.pid;
-    if(inppipeThreadPID && inppipeThreadPID > 0) {
+    if (inppipeThreadPID && inppipeThreadPID > 0) {
         try {
             process.kill(inppipeThreadPID, 'SIGHUP');
         } catch (error: any) {
-            if(error.code !== 'ESRCH') {
-                Log.error(error);
+            if (error.code !== 'ESRCH') {
+                Log.error(`killInpipeThread: ${error}`);
             }
         }
     }
 };
 
 const killOutpipeThread = () => {
-    outpipeThread?.send({ type: 'STOP' });
+    outpipeThread?.send({type: 'STOP'});
     outpipeThread?.kill('SIGINT');
     const outpipeThreadPID = outpipeThread?.pid;
-    if(outpipeThreadPID && outpipeThreadPID > 0) {
-        
+    if (outpipeThreadPID && outpipeThreadPID > 0) {
+
         try {
             process.kill(outpipeThreadPID, 'SIGHUP');
         } catch (error: any) {
-            if(error.code !== 'ESRCH') {
-                Log.error(error);
+            if (error.code !== 'ESRCH') {
+                Log.error(`killOutpipeThread: ${error}`);
             }
         }
     }
@@ -59,7 +60,7 @@ const startInpipeHandler = () => {
     inpipeThread = fork(__dirname + '/InpipeHandler');
 
     inpipeThread.on('message', (message: IPCMessage) => {
-        switch(message.type) {
+        switch (message.type) {
             case 'pipeError':
                 clearTimeout(refreshInfoTimeOut);
                 Log.warn('Reopening inpipe');
@@ -70,7 +71,7 @@ const startInpipeHandler = () => {
     });
 
     inpipeThread.on('exit', () => {
-        if(shutdown) return;
+        if (shutdown) return;
         Log.warn('Restarting InpipeHandler');
         setTimeout(() => {
             startInpipeHandler();
@@ -80,17 +81,17 @@ const startInpipeHandler = () => {
     inpipeThread.on('error', (error) => {
         Log.error(`InpipeHandler error: ${error}`);
     });
-    
+
     inpipeThread.on('spawn', () => {
-        sendMessage({ type: 'START' });
+        sendMessage({type: 'START'});
         Log.info('Pinging PZ Server');
-        sendMessage({ type: 'COMMAND', payload: { command: 'ping' } });
+        sendMessage({type: 'COMMAND', payload: {command: 'ping'}});
     });
 };
 
 const refreshInfo = () => {
     clearTimeout(refreshInfoTimeOut);
-    sendMessage({ type: 'COMMAND', payload: { command: 'info' } });
+    sendMessage({type: 'COMMAND', payload: {command: 'info'}});
     refreshInfoTimeOut = setTimeout(refreshInfo, 1000);
 };
 
@@ -98,65 +99,38 @@ const startOutpipeHandler = () => {
     outpipeThread = fork(__dirname + '/OutpipeHandler');
 
     outpipeThread.on('message', async (message: IPCMessage) => {
-        switch(message.type) {
+        switch (message.type) {
             case 'data':
                 let payload;
                 try {
                     payload = JSON.parse(message.payload);
                 } catch (error) {
-                    Log.error(error);
+                    Log.error(`outpipe.on.message: json: ${error}`);
                     return;
                 }
                 const newServerData = payload.data as PZServerData;
 
-                switch(payload.type) {
-                    case 'info': 
-                        if(!serverData) {
+                switch (payload.type) {
+                    case 'info':
+                        if (!serverData) {
                             serverData = newServerData;
                         } else {
                             serverData.players = newServerData.players;
-                            serverData.safeHouses = newServerData.safeHouses;
-                            serverData.game = {
-                                ...serverData.game,
-                                ...newServerData.game
-                            };
+                            serverData.game_time = newServerData.game_time;
                         }
-                        if(serverData?.players) {
-                            PlayerDBHelper.upsertPlayers(serverData.players);
-                            lastUpdated = new Date();
-                        }
+                        lastUpdated = new Date();
                         break;
                     case 'pong':
-                        if(!serverData) {
-                            serverData = newServerData;
-                        } else {
-                            serverData.server = {
-                                ...serverData.server,
-                                ...newServerData.server
-                            };
-                            serverData.game = {
-                                ...serverData.game,
-                                ...newServerData.game
-                            };
-                        }
+                        serverIsUp = true;
                         Log.info('PZ Server connected');
-                        refreshInfo();                    
-                        break;
-                    case 'zombieDied':
-                        Log.info('Zombie died');
+                        refreshInfo();
                         break;
                     case 'playerDied':
                         Log.info(`Player ${payload.data.username} died`);
-                        break;
-                    case 'playerConnected':
-                        Log.info(`Player ${payload.data.username} connected`);
-                        break;
-                    case 'playerDisconnected':
-                        Log.info(`Player ${payload.data.username} disconnected`);
-                        break;
-                    case 'log':
-                        Log.info(payload.data);
-                        break;
+                        await PlayerDBHelper.markDead(payload.data.username);
+                        break
+                    case 'players':
+                        await PlayerDBHelper.upsertPlayers(payload.data.players);
                 }
                 break;
             default:
@@ -171,7 +145,7 @@ const startOutpipeHandler = () => {
     });
 
     outpipeThread.on('exit', () => {
-        if(shutdown) return;
+        if (shutdown) return;
         Log.warn('Restarting OutpipeHandler');
         setTimeout(() => {
             startOutpipeHandler();
@@ -179,68 +153,23 @@ const startOutpipeHandler = () => {
     });
 
     outpipeThread.on('spawn', () => {
-        outpipeThread?.send({ type: 'START' });
+        outpipeThread?.send({type: 'START'});
     });
 };
 
 const makeInfo = async (): Promise<PZInfo> => {
-    if(!serverData) return {} as PZInfo;
-
-    const cachedPlayers = new Array<PZPlayer>();
-    const finalPlayers = new Array<PZPlayer>();
-    const savedPlayers = await PlayerDBHelper.getPlayers();
-
-    for(let savedPlayer of savedPlayers) {
-        let onlinePlayer = serverData.players?.find((onlinePlayer: any) => onlinePlayer.username === savedPlayer.username);
-        let cachedPlayer;
-        if(onlinePlayer) {
-            cachedPlayer = {
-                ...onlinePlayer,
-                online: true,
-                lastSeen: new Date()
-            } as PZPlayer;
-        } else {
-            cachedPlayer = {
-                ...savedPlayer,
-                online: false
-            } as PZPlayer;
-        }
-        cachedPlayers.push(cachedPlayer);
-    }
-
-    const pzSavedPlayers = await PlayerDBHelper.getPZPlayers();
-
-    for(const cachedPlayer of cachedPlayers) {
-        let finalPlayer = {
-            id: -1,
-            ...cachedPlayer,
-            isDead: false
-        } as PZPlayer;
-
-        const pzSavedPlayer = pzSavedPlayers.find((pzSavedPlayer: any) => pzSavedPlayer.username === cachedPlayer.username);
-
-        if(pzSavedPlayer) {
-            finalPlayer.id = pzSavedPlayer.id;
-            finalPlayer.isDead = pzSavedPlayer.isDead !== 0;
-        }
-
-        finalPlayers.push(finalPlayer);
-    }
-
     return {
-        data: { 
-            ...serverData,
-            players: finalPlayers
-        } as PZServerData,
-        lastUpdated
-    } as PZInfo;
+        data: serverData,
+        lastUpdated,
+        status: ServerStatus.UP ? serverIsUp : ServerStatus.DOWN,
+    } as PZInfo
 }
 
 const startExpress = () => {
-    app.use(express.json({ limit: '50mb' }));
-    app.use(express.urlencoded({ extended: true }));
+    app.use(express.json({limit: '50mb'}));
+    app.use(express.urlencoded({extended: true}));
     app.use(compression());
-    app.use(cors({ origin: '*' }));
+    app.use(cors({origin: '*'}));
     app.use(handleAuth);
 
     app.get("/info", async (req: Request, res: Response): Promise<Response> => {
@@ -248,31 +177,34 @@ const startExpress = () => {
             const info = await makeInfo();
             return res.status(200).send(info);
         } catch (error) {
-            Log.error(error)
+            Log.error(`POST /info: ${error}`)
             return res.status(500).send(error);
         }
     });
 
-    app.post("/command", async (req: Request, res: Response): Promise<Response> => {
-        const { command, payload } = req.body  as Command;
+    app.get("/player/:username", async (req: Request, res: Response): Promise<Response> => {
         try {
-            Log.debug(`executing command ${command} params:\n${JSON.stringify(payload, null, 2)}`);
-            sendMessage({ type: 'COMMAND', payload: { command, payload } });
-            // Just post back command for verification
-            return res.status(200).send({ type: 'COMMAND', payload: { command, payload } as Command });
+            const player = await PlayerDBHelper.getPlayer(req.params.username)
+            if (player === undefined) {
+                return res.status(404).send({error: "NOT_FOUND"})
+            }
+            return res.status(200).send(player)
         } catch (error) {
-            return res.status(500).send({ type: 'COMMAND', payload: { command, payload } as Command, error });
+            Log.error(`GET ${req.path}: error`)
+            return res.status(400).send(error)
         }
-    });
+    })
+
 
     app.post("/rcon", async (req: Request, res: Response): Promise<Response> => {
-        const { command, args } = req.body as RCONCommand;
+        const {command, args} = req.body as RCONCommand;
         try {
             Log.debug(`executing rcon command ${command} params:\n${JSON.stringify(args, null, 2)}`);
             const response = await RCONHelper.send(command, args);
-            return res.status(200).send({ response } as RCONResponse);
+            return res.status(200).send({response} as RCONResponse);
         } catch (error) {
-            return res.status(500).send({ command, args } as RCONCommand);
+            Log.error(`POST /rcon (${command}): ${error}`);
+            return res.status(500).send({command, args} as RCONCommand);
         }
     });
 
@@ -285,25 +217,16 @@ const startWebsocketServer = () => {
     const server = http.createServer(app);
     const io = new Server(server);
 
-    io.on("connection", (socket: Socket) => { 
+    io.on("connection", (socket: Socket) => {
         Log.info(`New websocket connection: ${socket?.handshake?.address}`);
 
-        socket.on("command", (data) => {
-            const { command, payload } = data;
-            try {
-                Log.debug(`executing websocket command ${command} params:\n${JSON.stringify(payload, null, 2)}`);
-                sendMessage({ type: 'COMMAND', payload: { command, payload } });
-            } catch (error) {
-                socket.send('command-error', error);
-            }
-        });
 
         socket.on("rcon", async (data) => {
-            const { command, args } = data;
+            const {command, args} = data;
             try {
                 Log.debug(`executing websocket rcon command ${command} params:\n${JSON.stringify(args, null, 2)}`);
                 const response = await RCONHelper.send(command, args);
-                socket.send('rcon-response', { response } as RCONResponse);
+                socket.send('rcon-response', {response} as RCONResponse);
             } catch (error) {
                 socket.send('rcon-error', error);
             }
@@ -325,7 +248,7 @@ const startWebsocketServer = () => {
 };
 
 const exitHandler = async () => {
-    Log.info('\nSchutting down BrainSlug Server');
+    Log.info('\nShutting down PZ Stories Server');
     shutdown = true;
     RCONHelper.shutdown = true;
     await RCONHelper.stopRCONClient();
@@ -340,9 +263,9 @@ process.on('SIGUSR2', exitHandler);
 
 (async () => {
     try {
-        Log.info('Booting BrainSlug Command and Control Server');
+        Log.info('Booting PZ Stories Command and Control Server');
 
-        if(process.env.DEBUG) {
+        if (process.env.DEBUG) {
             Log.debug('Debug mode active');
         }
 

@@ -1,5 +1,5 @@
-import { Rcon } from "rcon-client"
-import { Log } from "./Log"
+import {Rcon} from "rcon-client"
+import {Log} from "./Log"
 
 export class RCONHelper {
     private static rcon = new Rcon({
@@ -23,7 +23,7 @@ export class RCONHelper {
         try {
             await RCONHelper.rcon.connect();
         } catch (error: any) {
-            if(error.code !== 'ECONNREFUSED') {
+            if (error.code !== 'ECONNREFUSED') {
                 Log.error(`RCON Client connection error: ${error}`);
             }
             clearTimeout(RCONHelper.reconnectInterval);
@@ -35,21 +35,21 @@ export class RCONHelper {
         RCONHelper.rcon.on("connect", () => {
             Log.info('RCON Client connected');
         });
-    
+
         RCONHelper.rcon.on("error", (error) => {
             Log.error(`RCON Client error: ${error}`);
-            if(RCONHelper.isShuttingDown) return;
+            if (RCONHelper.isShuttingDown) return;
             clearTimeout(RCONHelper.reconnectInterval);
             RCONHelper.reconnectInterval = setTimeout(RCONHelper.tryToConnectToRcon, 1000);
         });
 
         RCONHelper.rcon.on('end', () => {
             Log.warn('RCON Client ended');
-            if(RCONHelper.isShuttingDown) return;
+            if (RCONHelper.isShuttingDown) return;
             clearTimeout(RCONHelper.reconnectInterval);
             RCONHelper.reconnectInterval = setTimeout(RCONHelper.tryToConnectToRcon, 1000);
         });
-    
+
         return RCONHelper.tryToConnectToRcon();
     }
 
@@ -59,8 +59,8 @@ export class RCONHelper {
 
     public static send = async (command: string, args: Array<string>) => {
         let commandString = command;
-        if(args.length > 0) {
-            commandString += ' ' + args.join(' ');
+        if (args.length > 0) {
+            commandString += ' ' + args.map(arg => `"${arg}"` ? arg.includes(" ") : arg).join(' ');
         }
         return RCONHelper.rcon.send(commandString);
     }
