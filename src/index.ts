@@ -178,7 +178,7 @@ const startExpress = () => {
             return res.status(200).send(info);
         } catch (error) {
             Log.error(`POST /info: ${error}`)
-            return res.status(500).send(error);
+            return res.status(500).send({error});
         }
     });
 
@@ -188,10 +188,10 @@ const startExpress = () => {
             if (player === undefined) {
                 return res.status(404).send({error: "NOT_FOUND"})
             }
-            return res.status(200).send(player)
+            return res.status(200).send({player})
         } catch (error) {
             Log.error(`GET ${req.path}: error`)
-            return res.status(400).send(error)
+            return res.status(500).send({error})
         }
     })
 
@@ -204,7 +204,7 @@ const startExpress = () => {
             return res.status(200).send({response} as RCONResponse);
         } catch (error) {
             Log.error(`POST /rcon (${command}): ${error}`);
-            return res.status(500).send({command, args} as RCONCommand);
+            return res.status(500).send({command, error});
         }
     });
 
@@ -219,18 +219,6 @@ const startWebsocketServer = () => {
 
     io.on("connection", (socket: Socket) => {
         Log.info(`New websocket connection: ${socket?.handshake?.address}`);
-
-
-        socket.on("rcon", async (data) => {
-            const {command, args} = data;
-            try {
-                Log.debug(`executing websocket rcon command ${command} params:\n${JSON.stringify(args, null, 2)}`);
-                const response = await RCONHelper.send(command, args);
-                socket.send('rcon-response', {response} as RCONResponse);
-            } catch (error) {
-                socket.send('rcon-error', error);
-            }
-        });
 
         const timer = setInterval(async () => {
             const info = await makeInfo();
