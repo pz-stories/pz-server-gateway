@@ -23,8 +23,6 @@ export interface PZPerk {
     level: number;
 }
 
-export type PZTrait = string;
-
 export interface PZFaction {
     name: string;
     owner: string;
@@ -40,28 +38,29 @@ export interface PZPlayerStats {
     perks: Array<PZPerk>
 }
 
-export interface PZLivingPlayer {
+interface BasePlayer {
     username: string;
-    full_name: string;
+    forename: string;
+    surname: string;
     display_name: string;
     access_level: string;
     last_connection?: Date;
-    traits: Array<PZTrait>;
-    stats: PZPlayerStats;
-    faction?: PZFaction;
     updated_at: Date;
-
-
 }
 
-export interface PZDeadPlayer {
-    username: string;
-    full_name: string;
-    display_name: string;
-    access_level: string;
-    last_connection?: Date;
+export interface PZLivingPlayer extends BasePlayer {
+    traits: Array<string>;
+    stats: PZPlayerStats;
+    faction?: PZFaction;
+    profession: string;
+
+    status: "alive";
+}
+
+export interface PZDeadPlayer extends BasePlayer {
     dead_at: Date;
-    updated_at: Date;
+
+    status: "dead"
 }
 
 export type PZPlayer = PZLivingPlayer | PZDeadPlayer

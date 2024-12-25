@@ -93,18 +93,22 @@ export class PlayerDBHelper {
         if (dbRecord.dead_at === null) {
             return {
                 ...data,
-                updated_at: dbRecord.updatedAt
+                updated_at: dbRecord.updatedAt,
+                status: "alive"
             } as PZLivingPlayer
         }
 
         return {
             username: data.username,
-            full_name: data.full_name,
+            forename: data.forename,
+            surname: data.surname,
             display_name: data.display_name,
             access_level: data.access_level,
-            last_connection: data.access_level,
+            last_connection: data.last_connection,
+
             dead_at: dbRecord.dead_at,
             updated_at: dbRecord.updatedAt,
+            status: "dead",
         } as PZDeadPlayer
     }
 }
