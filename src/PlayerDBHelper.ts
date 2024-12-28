@@ -40,7 +40,7 @@ export class PlayerDBHelper {
             await PlayerDBHelper.knex.schema.createTable(PLAYERS_DB, (table) => {
                 table.string('username', 100).primary();
                 table.text('dataJSONString').notNullable();
-                table.date("dead_at").nullable();
+                table.datetime("dead_at").nullable();
                 table.timestamps({
                     defaultToNow: true,
                     useCamelCase: true
@@ -61,12 +61,24 @@ export class PlayerDBHelper {
 
     public static async getPlayer(username: string): Promise<PZPlayer | undefined> {
         const dbRecord = (
-            await PlayerDBHelper.knex.select('dataJSONString', 'updatedAt', 'dead_at').from(PLAYERS_DB).where({username}).limit(1)
+            await PlayerDBHelper.
+            knex.
+            select('dataJSONString', 'updatedAt', 'dead_at').
+            from(PLAYERS_DB).where({username}).limit(1)
         )[0];
         if (!dbRecord) {
             return undefined;
         }
 
+        const pzPlayer = (
+            await PlayerDBHelper.pzKnex.select().
+            from<PZDBPlayer>(PZ_PLAYERS_DB).where({username}).limit(1)
+        )[0];
+
+        if (pzPlayer.isDead !== 0 && !dbRecord.dead_at) {
+            dbRecord.dead_at = new Date(1)
+        }
+        
         return PlayerDBHelper.convertPlayer(dbRecord)
     }
 
@@ -96,6 +108,10 @@ export class PlayerDBHelper {
                 updated_at: dbRecord.updatedAt,
                 status: "alive"
             } as PZLivingPlayer
+        }
+
+        if (typeof dbRecord.dead_at === "number") {
+            dbRecord.dead_at = new Date(dbRecord.dead_at)
         }
 
         return {
