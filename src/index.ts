@@ -130,7 +130,7 @@ const startOutpipeHandler = () => {
                         await PlayerDBHelper.markDead(payload.data.username);
                         break
                     case 'players':
-                        await PlayerDBHelper.upsertPlayers(payload.data.players);
+                        await PlayerDBHelper.upsertPlayers(payload.data);
                 }
                 break;
             default:
@@ -190,7 +190,7 @@ const startExpress = () => {
             }
             return res.status(200).send({player})
         } catch (error) {
-            Log.error(`GET ${req.path}: error`)
+            Log.error(`GET ${req.path}: ${error}`)
             return res.status(500).send({error})
         }
     })
