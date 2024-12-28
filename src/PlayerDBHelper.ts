@@ -104,8 +104,7 @@ export class PlayerDBHelper {
             surname: data.surname,
             display_name: data.display_name,
             access_level: data.access_level,
-            last_connection: data.last_connection,
-
+            is_female: data.is_female,
             dead_at: dbRecord.dead_at,
             updated_at: dbRecord.updatedAt,
             status: "dead",

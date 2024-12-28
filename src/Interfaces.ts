@@ -44,7 +44,7 @@ interface BasePlayer {
     surname: string;
     display_name: string;
     access_level: string;
-    last_connection?: Date;
+    is_female: boolean;
     updated_at: Date;
 }
 
