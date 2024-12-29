@@ -49,16 +49,6 @@ export class PlayerDBHelper {
         }
     }
 
-    public static async getPZPlayers(): Promise<Array<PZDBPlayer>> {
-        return PlayerDBHelper.pzKnex.select().from(PZ_PLAYERS_DB);
-    }
-
-    public static async getPlayers(): Promise<Array<PZPlayer>> {
-        const dbRecords = await PlayerDBHelper.knex.select('dataJSONString', 'updatedAt', 'dead_at').from(PLAYERS_DB);
-
-        return dbRecords.map(PlayerDBHelper.convertPlayer);
-    }
-
     public static async getPlayer(username: string): Promise<PZPlayer | undefined> {
         const dbRecord = (
             await PlayerDBHelper.
@@ -83,6 +73,13 @@ export class PlayerDBHelper {
     }
 
     public static async upsertPlayer(isoPlayer: PZPlayer) {
+        isoPlayer.access_level = isoPlayer.access_level.toLowerCase()
+
+        if (isoPlayer.access_level == "none") {
+            isoPlayer.access_level = "player"
+        }
+
+
         return PlayerDBHelper.knex.insert({
             username: isoPlayer.username,
             dataJSONString: JSON.stringify(isoPlayer)

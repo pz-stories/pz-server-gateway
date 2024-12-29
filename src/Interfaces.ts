@@ -18,11 +18,6 @@ export interface IPCMessage {
 }
 
 
-export interface PZPerk {
-    name: string;
-    level: number;
-}
-
 export interface PZFaction {
     name: string;
     owner: string;
@@ -35,7 +30,7 @@ export interface PZPlayerStats {
     zombie_kills: number;
     players_kills: number;
     hours_survived: number;
-    perks: Array<PZPerk>
+    perks: Map<string, number>;
 }
 
 interface BasePlayer {
