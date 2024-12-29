@@ -1,6 +1,7 @@
 import { closeSync, openSync, writeFileSync } from "fs";
 import { Command, IPCMessage } from "./Interfaces";
 import os from 'os';
+import {Log} from "./Log";
 
 if(!process.env.INPIPE_FILE_NAME && !process.env.DEBUG) {
     throw 'MISSING INPIPE_FILE_NAME ENV VAR';
@@ -31,6 +32,7 @@ process.on('message', (message: IPCMessage) => {
     const { type, payload } = message;
     switch(type) {
         case 'START':
+            Log.info("start inpipe")
             openInpipe();
             break;
         case 'COMMAND':
