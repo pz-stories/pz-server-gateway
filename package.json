@@ -5,7 +5,8 @@
 	"main": "out/index.js",
 	"scripts": {
 		"tsc": "tsc",
-		"exec": "npm run tsc && node out/index.js"
+		"prod": "node out/index.js",
+		"exec": "npm run tsc && npm run prod"
 	},
 	"devDependencies": {
 		"@types/compression": "^1.7.2",

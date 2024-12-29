@@ -21,4 +21,4 @@ RUN npm run tsc
 ENV INPIPE_FILE_NAME="${ZOMBOID_PATH}/Lua/PZStoriesStats/inpipe"
 ENV OUTPIPE_FILE_NAME="${ZOMBOID_PATH}/Lua/PZStoriesStats/outpipe"
 
-CMD ["npm", "run", "exec"]
+CMD ["npm", "run", "prod"]
