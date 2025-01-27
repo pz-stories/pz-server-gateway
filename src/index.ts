@@ -195,6 +195,20 @@ const startExpress = () => {
         }
     })
 
+    app.get("/player/:username/status", async (req: Request, res: Response): Promise<Response> => {
+        try {
+            const status = await PlayerDBHelper.getStatus(req.params.username);
+            if (!status) {
+                return res.status(404).send({error: "NOT_FOUND"})
+            }
+            return res.status(200).send({status})
+        } catch (error) {
+            Log.error(`GET ${req.path}: ${error}`)
+            return res.status(500).send({error})
+        }
+
+    })
+
 
     app.post("/rcon", async (req: Request, res: Response): Promise<Response> => {
         const {command, args} = req.body as RCONCommand;
