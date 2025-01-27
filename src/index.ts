@@ -127,7 +127,7 @@ const startOutpipeHandler = () => {
                         break;
                     case 'playerDied':
                         Log.info(`Player ${payload.data.username} died`);
-                        await PlayerDBHelper.markDead(payload.data.username);
+                        await PlayerDBHelper.markDead(payload.data);
                         break
                     case 'players':
                         await PlayerDBHelper.upsertPlayers(payload.data);

@@ -33,36 +33,31 @@ export interface PZPlayerStats {
     perks: Map<string, number>;
 }
 
-interface BasePlayer {
+
+export interface PZPlayerData {
     username: string;
     forename: string;
     surname: string;
     display_name: string;
     access_level: string;
     is_female: boolean;
-    updated_at: Date;
-}
 
-export interface PZLivingPlayer extends BasePlayer {
+
     traits: Array<string>;
     stats: PZPlayerStats;
     faction?: PZFaction;
     profession: string;
-
-    status: "alive";
 }
 
-export interface PZDeadPlayer extends BasePlayer {
-    dead_at: Date;
-
-    status: "dead"
+export interface PZPlayer extends PZPlayerData {
+    updated_at: Date;
+    dead_at?: Date;
+    banned: boolean;
+    steamId?: string;
 }
-
-export type PZPlayer = PZLivingPlayer | PZDeadPlayer
 
 export interface PZDBPlayer {
     username: string;
-    id: number;
     isDead: number;
 }
 
@@ -81,5 +76,12 @@ export interface PZInfo {
     data?: PZServerData;
     status: ServerStatus;
     lastUpdated: Date;
+}
+
+export enum PlayerStatus {
+    NONE = "none",
+    ALIVE = "alive",
+    DEAD = "dead",
+    BANNED = "banned",
 }
 

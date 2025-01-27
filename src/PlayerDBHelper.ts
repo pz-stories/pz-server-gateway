@@ -1,17 +1,23 @@
 import knex, {Knex} from 'knex';
-import {PZDBPlayer, PZDeadPlayer, PZLivingPlayer, PZPlayer} from './Interfaces';
+import {PlayerStatus, PZDBPlayer, PZPlayer, PZPlayerData} from './Interfaces';
 import {Log} from './Log';
 
 export const PLAYERS_DB = 'player';
 export const PZ_PLAYERS_DB = 'networkPlayers';
+export const PZ_WHITELIST_DB = 'whitelist';
 
 if (!process.env.PZ_PLAYERS_DB && !process.env.DEBUG) {
     throw 'MISSING PZ_PLAYERS_DB ENV VAR';
 }
 
+if (!process.env.PZ_WHITELIST_DB && !process.env.DEBUG) {
+    throw 'MISSING PZ_WHITELIST_DB ENV VAR';
+}
+
 export class PlayerDBHelper {
     public static knex: Knex;
     public static pzKnex: Knex;
+    public static whiteList: Knex;
 
     public static async init() {
         PlayerDBHelper.knex = knex({
@@ -29,6 +35,14 @@ export class PlayerDBHelper {
                 filename: process.env.PZ_PLAYERS_DB ? process.env.PZ_PLAYERS_DB : "" // e.g. ~/Zomboid/Saves/Multiplayer/SERVERNAME/players.db
             }
         });
+
+        PlayerDBHelper.whiteList = knex({
+            client: 'sqlite3',
+            useNullAsDefault: true,
+            connection: {
+                filename: process.env.PZ_WHITELIST_DB ? process.env.PZ_WHITELIST_DB : ""
+            }
+        })
 
         await PlayerDBHelper.createTables();
 
@@ -49,36 +63,68 @@ export class PlayerDBHelper {
         }
     }
 
-    public static async getPlayer(username: string): Promise<PZPlayer | undefined> {
-        const dbRecord = (
-            await PlayerDBHelper.
-            knex.
+    private static async getPlayerData(where: object): Promise<DBRecord | undefined> {
+        return (
+            await PlayerDBHelper.knex.
             select('dataJSONString', 'updatedAt', 'dead_at').
-            from(PLAYERS_DB).where({username}).limit(1)
+            from(PLAYERS_DB).
+            where(where).
+            limit(1)
         )[0];
+    }
+
+    private static async getDbPlayer(where: object): Promise<PZDBPlayer | undefined> {
+        return (
+            await PlayerDBHelper.pzKnex.
+            select('username', 'isDead').
+            from<PZDBPlayer>(PZ_PLAYERS_DB).
+            where(where).
+            limit(1)
+        )[0];
+    }
+
+    private static async getWhiteList(where: object): Promise<WhiteListRecord | undefined> {
+        return (
+            await PlayerDBHelper.whiteList.
+            select('username','steamId','banned').
+            from<WhiteListRecord>(PZ_WHITELIST_DB).
+            where(where).
+            limit(1)
+        )[0];
+    }
+
+
+    public static async getPlayer(username: string): Promise<PZPlayer | undefined> {
+        const dbRecord = await PlayerDBHelper.getPlayerData({username});
         if (!dbRecord) {
             return undefined;
         }
 
-        const pzPlayer = (
-            await PlayerDBHelper.pzKnex.select().
-            from<PZDBPlayer>(PZ_PLAYERS_DB).where({username}).limit(1)
-        )[0];
+        const pzPlayer = await PlayerDBHelper.getDbPlayer({username});
 
-        if (pzPlayer.isDead !== 0 && !dbRecord.dead_at) {
-            dbRecord.dead_at = new Date(1)
+        if (pzPlayer) {
+            if (pzPlayer.isDead !== 0 && !dbRecord.dead_at) {
+                dbRecord.dead_at = new Date(1)
+            }
+
+            // If player again alive in main game db,
+            // we will follow this changes.
+            if (pzPlayer.isDead == 0) {
+                dbRecord.dead_at = undefined;
+            }
         }
-        
+
+        const whiteListData = await PlayerDBHelper.getWhiteList({username});
+
+        dbRecord.banned = !!whiteListData?.banned;
+        dbRecord.steamId = whiteListData?.steamId;
+
+
         return PlayerDBHelper.convertPlayer(dbRecord)
     }
 
-    public static async upsertPlayer(isoPlayer: PZPlayer) {
-        isoPlayer.access_level = isoPlayer.access_level.toLowerCase()
-
-        if (isoPlayer.access_level == "none") {
-            isoPlayer.access_level = "player"
-        }
-
+    public static async upsertPlayer(isoPlayer: PZPlayerData) {
+        isoPlayer = PlayerDBHelper.preparePlayer(isoPlayer)
 
         return PlayerDBHelper.knex.insert({
             username: isoPlayer.username,
@@ -90,43 +136,81 @@ export class PlayerDBHelper {
         return Promise.all(isoPlayers.map(isoPlayer => PlayerDBHelper.upsertPlayer(isoPlayer)));
     }
 
-    public static async markDead(username: string) {
-        return PlayerDBHelper.knex.where({username}).update({
+    public static async markDead(player: PZPlayerData) {
+        player = PlayerDBHelper.preparePlayer(player)
+
+        return PlayerDBHelper.knex.insert({
+            username: player.username,
             dead_at: new Date(),
-        }).into(PLAYERS_DB)
+            dataJSONString: JSON.stringify(player)
+        }).into(PLAYERS_DB).onConflict('username').merge(['dataJSONString']);
+    }
+
+
+    private static preparePlayer(player: PZPlayerData) {
+        player.access_level = player.access_level.toLowerCase()
+
+        if (player.access_level === "none") {
+            player.access_level = "player";
+        }
+
+        return player;
     }
 
 
     private static convertPlayer(dbRecord: DBRecord): PZPlayer {
         const data = JSON.parse(dbRecord.dataJSONString)
-        if (dbRecord.dead_at === null) {
-            return {
-                ...data,
-                updated_at: dbRecord.updatedAt,
-                status: "alive"
-            } as PZLivingPlayer
-        }
-
         if (typeof dbRecord.dead_at === "number") {
             dbRecord.dead_at = new Date(dbRecord.dead_at)
         }
 
         return {
-            username: data.username,
-            forename: data.forename,
-            surname: data.surname,
-            display_name: data.display_name,
-            access_level: data.access_level,
-            is_female: data.is_female,
-            dead_at: dbRecord.dead_at,
+            ...data,
             updated_at: dbRecord.updatedAt,
-            status: "dead",
-        } as PZDeadPlayer
+            dead_at: dbRecord.dead_at,
+            banned: dbRecord.banned,
+            steamId: dbRecord.steamId,
+        }
+    }
+
+    public static async getStatus(username: string): Promise<PlayerStatus> {
+        const whiteList = await PlayerDBHelper.getWhiteList({username})
+        if (!whiteList) {
+            return PlayerStatus.NONE
+        }
+
+        if (whiteList?.banned) {
+            return PlayerStatus.BANNED;
+        }
+
+        const dbPlayer = await PlayerDBHelper.getDbPlayer({username});
+        if (!dbPlayer) {
+            return PlayerStatus.NONE;
+        }
+
+        if (dbPlayer?.isDead) {
+            return PlayerStatus.DEAD
+        }
+
+        const data = await PlayerDBHelper.getPlayerData({username})
+        if (data) {
+            return PlayerStatus.ALIVE;
+        }
+
+        return PlayerStatus.NONE;
     }
 }
 
 interface DBRecord {
     dataJSONString: string,
     updatedAt: Date,
-    dead_at?: Date,
+    dead_at?: Date | number,
+    banned: boolean;
+    steamId?: string;
+}
+
+interface WhiteListRecord {
+    username: string;
+    steamId?: string;
+    banned?: boolean;
 }
