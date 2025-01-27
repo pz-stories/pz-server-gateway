@@ -5,7 +5,7 @@ export class RCONHelper {
     private static rcon = new Rcon({
         host: process.env.RCON_HOST ? process.env.RCON_HOST : "localhost",
         port: process.env.RCON_PORT ? parseInt(process.env.RCON_PORT) : 27015,
-        password: process.env.RCON_PW ? process.env.RCON_PW : "PZ_RULES"
+        password: process.env.RCON_PW ? process.env.RCON_PW : ""
     });
     private static isShuttingDown: boolean = false;
 
