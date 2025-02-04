@@ -130,6 +130,7 @@ const startOutpipeHandler = () => {
                         await PlayerDBHelper.markDead(payload.data);
                         break
                     case 'players':
+                        Log.debug("Players fetched")
                         await PlayerDBHelper.upsertPlayers(payload.data);
                 }
                 break;
