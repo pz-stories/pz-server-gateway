@@ -173,10 +173,10 @@ export class PlayerDBHelper {
         }
     }
 
-    public static async getStatus(username: string): Promise<PlayerStatus> {
+    public static async getStatus(username: string): Promise<PlayerStatus|null> {
         const whiteList = await PlayerDBHelper.getWhiteList({username})
         if (!whiteList) {
-            return PlayerStatus.NONE
+            return null;
         }
 
         if (whiteList?.banned) {
