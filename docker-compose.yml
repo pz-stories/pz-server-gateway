@@ -1,11 +1,10 @@
-version: '3.8'
-
 services:
   pz-server-gateway:
     image: ghcr.io/pz-stories/pz-server-gateway:latest
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "8080:8080"
       - "8088:8088"
@@ -15,6 +14,9 @@ services:
       ZOMBOID_PATH: "/Zomboid"
       EXPORTED_PLAYERS_DB: "/data/exportedPlayers.db"
       PZ_PLAYERS_DB: "/Zomboid/Saves/Multiplayer/pzserver/players.db"
+      PZ_WHITELIST_DB: "/Zomboid/db/pzserver.db"
+      OUTPIPE_FILE_NAME: "/Zomboid/Lua/PZStoriesStats/outpipe"
+      INPIPE_FILE_NAME: "/Zomboid/Lua/PZStoriesStats/inpipe"
     volumes:
       - "${ZOMBOID_PATH:-~/Zomboid}:/Zomboid"
       - exported_data:/data/
