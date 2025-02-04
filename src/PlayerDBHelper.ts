@@ -169,7 +169,7 @@ export class PlayerDBHelper {
             updated_at: new Date(dbRecord.updatedAt),
             dead_at: dbRecord.dead_at,
             banned: dbRecord.banned,
-            steamId: dbRecord.steamId,
+            steam_id: dbRecord.steamId,
         }
     }
 
