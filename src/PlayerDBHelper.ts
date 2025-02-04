@@ -166,7 +166,7 @@ export class PlayerDBHelper {
 
         return {
             ...data,
-            updated_at: dbRecord.updatedAt,
+            updated_at: new Date(dbRecord.updatedAt),
             dead_at: dbRecord.dead_at,
             banned: dbRecord.banned,
             steamId: dbRecord.steamId,
