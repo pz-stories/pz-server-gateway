@@ -129,7 +129,7 @@ export class PlayerDBHelper {
         return PlayerDBHelper.knex.insert({
             username: isoPlayer.username,
             dataJSONString: JSON.stringify(isoPlayer)
-        }).into(PLAYERS_DB).onConflict('username').merge(['dataJSONString']);
+        }).into(PLAYERS_DB).onConflict('username').merge(['dataJSONString', 'updatedAt']);
     }
 
     public static async upsertPlayers(isoPlayers: Array<PZPlayer>) {
@@ -143,7 +143,7 @@ export class PlayerDBHelper {
             username: player.username,
             dead_at: new Date(),
             dataJSONString: JSON.stringify(player)
-        }).into(PLAYERS_DB).onConflict('username').merge(['dataJSONString']);
+        }).into(PLAYERS_DB).onConflict('username').merge(['dataJSONString', 'dead_at', 'updatedAt']);
     }
 
 
