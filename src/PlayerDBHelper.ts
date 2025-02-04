@@ -103,7 +103,7 @@ export class PlayerDBHelper {
         const pzPlayer = await PlayerDBHelper.getDbPlayer({username});
 
         if (pzPlayer) {
-            if (pzPlayer.isDead !== 0 && !dbRecord.dead_at) {
+            if (!!pzPlayer.isDead && !dbRecord.dead_at) {
                 dbRecord.dead_at = new Date(1)
             }
 
@@ -116,7 +116,7 @@ export class PlayerDBHelper {
 
         const whiteListData = await PlayerDBHelper.getWhiteList({username});
 
-        dbRecord.banned = !!whiteListData?.banned;
+        dbRecord.banned = !!(whiteListData?.banned);
         dbRecord.steamId = whiteListData?.steamId;
 
 
