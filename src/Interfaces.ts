@@ -28,7 +28,6 @@ export interface PZPlayerStats {
     weight: number;
     health: number;
     zombie_kills: number;
-    players_kills: number;
     hours_survived: number;
     perks: Map<string, number>;
 }
@@ -53,7 +52,7 @@ export interface PZPlayer extends PZPlayerData {
     updated_at: Date;
     dead_at?: Date;
     banned: boolean;
-    steamId?: string;
+    steam_id?: string;
 }
 
 export interface PZDBPlayer {
