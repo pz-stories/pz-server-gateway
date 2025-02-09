@@ -86,7 +86,7 @@ export class PlayerDBHelper {
     private static async getWhiteList(where: object): Promise<WhiteListRecord | undefined> {
         return (
             await PlayerDBHelper.whiteList.
-            select('username','steamId','banned').
+            select('username','banned').select({steamId: "steamid"}).
             from<WhiteListRecord>(PZ_WHITELIST_DB).
             where(where).
             limit(1)
