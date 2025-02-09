@@ -5,7 +5,7 @@ export interface Command {
 
 export interface RCONCommand {
     command: string;
-    args: Array<string>;
+    args?: Array<string>;
 }
 
 export interface RCONResponse {

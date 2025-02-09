@@ -57,9 +57,9 @@ export class RCONHelper {
         return RCONHelper.rcon.end();
     }
 
-    public static send = async (command: string, args: Array<string>) => {
+    public static send = async (command: string, args: Array<string> | undefined) => {
         let commandString = command;
-        if (args.length > 0) {
+        if (args && args?.length > 0) {
             commandString += ' ' + args.map(arg => `"${arg}"` ? arg.includes(" ") : arg).join(' ');
         }
         return RCONHelper.rcon.send(commandString);
