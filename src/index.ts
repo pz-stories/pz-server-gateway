@@ -108,10 +108,11 @@ const startOutpipeHandler = () => {
                     Log.error(`outpipe.on.message: json: ${error}`);
                     return;
                 }
-                const newServerData = payload.data as PZServerData;
+
 
                 switch (payload.type) {
                     case 'info':
+                        const newServerData = payload.data as PZServerData;
                         if (!serverData) {
                             serverData = newServerData;
                         } else {
